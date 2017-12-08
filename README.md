@@ -2,12 +2,12 @@
 Dynamic per-player view distances - this plugin utilises Mixins, be warned!
 
 ## Commands
-| Command | Permission | Default Role  | Description |
-| :------ | :--------- | :-----------  | :---------- |
-| `dynview reload` | `dynview.admin` |   | Reloads the config and refreshes all users |
-| `dynview reset` | `dynview.custom` |   | Resets your server-side view distance to the default |
-| `dynview set <distance>` | `dynview.custom` |   | Sets your server-side view distance to a custom value |
-| `dynview test <target>` | `dynview.admin` |   | Check what server-side view distance the target player has been set |
+| Command | Permission |  Description |
+| :------ | :--------- | :---------- |
+| `dynview reload` | `dynview.admin` |  Reloads the config and refreshes all users |
+| `dynview reset` | `dynview.custom` | Resets your server-side view distance to the default |
+| `dynview set <distance>` | `dynview.custom` | Sets your server-side view distance to a custom value |
+| `dynview test <target>` | `dynview.admin` | Check what server-side view distance the target player has been set |
 
 ## Config
 #### Format:
