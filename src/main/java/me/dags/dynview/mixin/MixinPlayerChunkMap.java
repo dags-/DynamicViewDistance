@@ -84,12 +84,25 @@ public abstract class MixinPlayerChunkMap implements DynChunkMap {
             return;
         }
 
-        EntityPlayerMP player = (EntityPlayerMP) dynPlayer;
-        boolean expand = newDistance > currentDistance;
+        final EntityPlayerMP player = (EntityPlayerMP) dynPlayer;
         int px = (int) player.posX >> 4;
         int pz = (int) player.posZ >> 4;
         int min = Math.min(currentDistance, newDistance);
         int max = Math.max(currentDistance, newDistance);
+
+        // gets/creates the ChunkMapEntry for the target pos & adds player to it
+        EntryVisitor<EntityPlayerMP> expand = (x, z, p) -> getOrCreateEntry(x, z).addPlayer(p);
+
+        // gets the ChunkMapEntry for the target pos & removes player from it (if it exists)
+        EntryVisitor<EntityPlayerMP> contract = (x, z, p) -> {
+            PlayerChunkMapEntry entry = getEntry(x, z);
+            if (entry != null) {
+                entry.removePlayer(p);
+            }
+        };
+
+        // view distance has increased? => expand, otherwise contract
+        EntryVisitor<EntityPlayerMP> visitor = (newDistance > currentDistance) ? expand : contract;
 
         /*
          * |xz|xz|xz|
@@ -97,17 +110,10 @@ public abstract class MixinPlayerChunkMap implements DynChunkMap {
          * |xz|xz|xz| // iterates this area and mirrors ^
          */
         for (int dx = -max; dx <= max; dx++) {
-            for (int dz = -max; dz <= -min; dz++) {
-                if (expand) {
-                    getOrCreateEntry(px + dx, pz + dz).addPlayer(player);
-                    if (dx != 0 || dz != 0) { // avoid duplicates at origin
-                        getOrCreateEntry(px - dx, pz - dz).addPlayer(player);
-                    }
-                } else {
-                    removePlayerFromEntry(px + dx, pz + dz, player);
-                    if (dx != 0 || dz != 0) {
-                        removePlayerFromEntry(px - dx, pz - dz, player);
-                    }
+            for (int dz = -max; dz < -min; dz++) {
+                visitor.visit(px + dx, pz + dz, player);
+                if (dx != 0 || dz != 0) { // avoid duplicates at origin
+                    visitor.visit(px - dx, pz - dz, player);
                 }
             }
         }
@@ -117,18 +123,11 @@ public abstract class MixinPlayerChunkMap implements DynChunkMap {
          * |xz|  |xz| // iterates left-hand area and mirrors >
          * |..|..|..|
          */
-        for (int dx = -max; dx <= -min; dx++) {
+        for (int dx = -max; dx < -min; dx++) {
             for (int dz = -min; dz <= min; dz++) {
-                if (expand) {
-                    getOrCreateEntry(px + dx, pz + dz).addPlayer(player);
-                    if (dx != 0 || dz != 0) {
-                        getOrCreateEntry(px - dx, pz - dz).addPlayer(player);
-                    }
-                } else {
-                    removePlayerFromEntry(px + dx, pz + dz, player);
-                    if (dx != 0 || dz != 0) {
-                        removePlayerFromEntry(px - dx, pz - dz, player);
-                    }
+                visitor.visit(px + dx, pz + dz, player);
+                if (dx != 0 || dz != 0) {
+                    visitor.visit(px - dx, pz - dz, player);
                 }
             }
         }
@@ -139,12 +138,5 @@ public abstract class MixinPlayerChunkMap implements DynChunkMap {
     @Override
     public int getWorldViewDistance() {
         return playerViewRadius;
-    }
-
-    private void removePlayerFromEntry(int x, int z, EntityPlayerMP player) {
-        PlayerChunkMapEntry entry = getEntry(x, z);
-        if (entry != null) {
-            entry.removePlayer(player);
-        }
     }
 }

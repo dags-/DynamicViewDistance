@@ -101,16 +101,17 @@ public class DynamicViewDistance {
     public void resetDistance(@Src Player player) {
         DynPlayer dynPlayer = (DynPlayer) player;
         dynPlayer.resetDynViewDistance();
-        Fmt.get("dynview").info("Reset your server-side view distance: ").tell(player);
+        Fmt.get("dynview").info("Reset your server-side view distance").tell(player);
     }
 
     @Command("dynview|dv test <target>")
     @Permission(DynamicViewDistance.DYN_ADMIN)
-    @Description("Check what server-side view distance the target player has been set")
+    @Description("Check what server-side view distance the target player has set")
     public void testDistance(@Src CommandSource src, Player target) {
         DynPlayer dynPlayer = (DynPlayer) target;
         int distance = dynPlayer.getDynViewDistance();
-        Fmt.stress(target.getName()).info(" has a view distance of ").stress(distance).tell(src);
+        Object value = distance == DynPlayer.DEFAULT_DISTANCE ? "default" : distance;
+        Fmt.stress(target.getName()).info("'s view distance is set to").stress(value).tell(src);
     }
 
     @Command("dynview|dv reload")
