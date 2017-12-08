@@ -41,6 +41,7 @@ public class DynamicViewDistance {
     private static final Mapper<Config> mapper = Mapper.of(Config.class);
 
     private final Path dir;
+    private boolean paused = false;
     private Config config;
 
     @Inject
@@ -85,7 +86,16 @@ public class DynamicViewDistance {
         }
     }
 
-    @Command("dynview|dv set <distance>")
+    private void reset() {
+        Collection<Player> online = Sponge.getServer().getOnlinePlayers();
+        for (Player player : online) {
+            if (!player.hasPermission(DYN_BYPASS)) {
+                ((DynPlayer) player).setDynViewDistance(DynPlayer.DEFAULT_DISTANCE);
+            }
+        }
+    }
+
+    @Command("dynview set <distance>")
     @Permission(DynamicViewDistance.DYN_CUSTOM)
     @Description("Sets your server-side view distance to a custom value")
     public void setDistance(@Src Player player, int distance) {
@@ -95,7 +105,7 @@ public class DynamicViewDistance {
         Fmt.get("dynview").info("Set your server-side view distance to: ").stress(value).tell(player);
     }
 
-    @Command("dynview|dv reset")
+    @Command("dynview reset")
     @Permission(DynamicViewDistance.DYN_CUSTOM)
     @Description("Resets your server-side view distance to the default")
     public void resetDistance(@Src Player player) {
@@ -104,7 +114,7 @@ public class DynamicViewDistance {
         Fmt.get("dynview").info("Reset your server-side view distance").tell(player);
     }
 
-    @Command("dynview|dv test <target>")
+    @Command("dynview test <target>")
     @Permission(DynamicViewDistance.DYN_ADMIN)
     @Description("Check what server-side view distance the target player has set")
     public void testDistance(@Src CommandSource src, Player target) {
@@ -114,11 +124,23 @@ public class DynamicViewDistance {
         Fmt.stress(target.getName()).info("'s view distance is set to").stress(value).tell(src);
     }
 
-    @Command("dynview|dv reload")
+    @Command("dynview reload")
     @Permission(DynamicViewDistance.DYN_ADMIN)
     @Description("Reloads the config and refreshes all users")
     public void reload(@Src CommandSource src) {
         Fmt.get("dynview").info("Reloading...").tell(src);
         onReload(null);
+    }
+
+    @Command("dynview pause")
+    @Permission(DynamicViewDistance.DYN_ADMIN)
+    @Description("Toggles on/off dynamic view distances for all players")
+    public void pause(@Src CommandSource src) {
+        if (paused = !paused) {
+            Task.builder().execute(this::reset).submit(this);
+        } else {
+            Task.builder().execute(this::refresh).submit(this);
+        }
+        Fmt.get("dynview").info("Dynamic view distances paused: ").stress(paused).tell(src);
     }
 }
