@@ -28,7 +28,7 @@ public class Threshold extends LinkedHashMap<String, Integer> {
             if (entry.getKey().equals("default")) {
                 continue;
             }
-            
+
             if (subject.hasPermission(DynamicViewDistance.DYN_GROUP + entry.getKey())) {
                 distance = Math.max(distance, entry.getValue());
             }

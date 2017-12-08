@@ -61,7 +61,7 @@ shadowJar {
     exclude 'dummyThing'
     relocate 'me.dags.commandbus.', 'me.dags.dynview.commandbus.'
     relocate 'me.dags.config.', 'me.dags.dynview.cfg.'
-    classifier null // replace the jar task .jar with the shadowed .jar (see reobfJar comment)
+    classifier null
 }
 
 jar {
@@ -76,11 +76,11 @@ jar {
 
 processResources {
     from('build/tmp/compileJava') {
-        include '*.refmap.json' // probably a better way
+        include '*.refmap.json' // make sure refmap (generated during compileJava) is included as a resource
     }
 }
 
 reobfJar {
-    // replace the jar task .jar with the shadowJar task .jar before reobf'ing (again, there's probably a better way)
+    // replace the jar task .jar with the shadowJar task .jar before reobf'ing (there's probably a better way)
     dependsOn shadowJar
 }
