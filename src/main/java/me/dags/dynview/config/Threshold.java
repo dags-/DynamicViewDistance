@@ -25,6 +25,10 @@ public class Threshold extends LinkedHashMap<String, Integer> {
     public int getViewDistance(Subject subject) {
         int distance = getOrDefault("default", DynPlayer.DEFAULT_DISTANCE);
         for (Map.Entry<String, Integer> entry : entrySet()) {
+            if (entry.getKey().equals("default")) {
+                continue;
+            }
+            
             if (subject.hasPermission(DynamicViewDistance.DYN_GROUP + entry.getKey())) {
                 distance = Math.max(distance, entry.getValue());
             }
