@@ -29,10 +29,6 @@ def spongeAPI = '5.2.0'
 def spongeChannel = 'SNAPSHOT'
 sourceCompatibility = targetCompatibility = 1.8
 
-//configurations {
-//    compile.extendsFrom shadow
-//}
-
 minecraft {
     version = '1.10.2'
     mappings = 'snapshot_20161027'
@@ -65,8 +61,7 @@ shadowJar {
     exclude 'dummyThing'
     relocate 'me.dags.commandbus.', 'me.dags.dynview.commandbus.'
     relocate 'me.dags.config.', 'me.dags.dynview.cfg.'
-    classifier null
-//    archiveName = "${baseName}-mixins-${version}-SpongeAPI-${spongeAPI}.jar"
+    classifier null // replace the jar task .jar with the shadowed .jar (see reobfJar comment)
 }
 
 jar {
@@ -79,12 +74,13 @@ jar {
     )
 }
 
-reobfJar {
-    dependsOn shadowJar
-}
-
 processResources {
     from('build/tmp/compileJava') {
-        include '*.refmap.json'
+        include '*.refmap.json' // probably a better way
     }
+}
+
+reobfJar {
+    // replace the jar task .jar with the shadowJar task .jar before reobf'ing (again, there's probably a better way)
+    dependsOn shadowJar
 }
