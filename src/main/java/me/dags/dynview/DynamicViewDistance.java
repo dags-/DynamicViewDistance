@@ -22,6 +22,7 @@ import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.scheduler.Task;
+import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.format.TextColors;
 
 import java.nio.file.Path;
@@ -73,28 +74,6 @@ public class DynamicViewDistance {
         Task.builder().execute(this::refresh).submit(this);
     }
 
-    private void refresh() {
-        Collection<Player> online = Sponge.getServer().getOnlinePlayers();
-        int count = online.size();
-        for (Player player : online) {
-            if (!player.hasPermission(DYN_BYPASS)) {
-                WorldConfig world = config.getWorldConfig(player.getWorld().getName());
-                Threshold threshold = world.getThreshold(count);
-                int distance = threshold.getViewDistance(player);
-                ((DynPlayer) player).setDynViewDistance(distance);
-            }
-        }
-    }
-
-    private void reset() {
-        Collection<Player> online = Sponge.getServer().getOnlinePlayers();
-        for (Player player : online) {
-            if (!player.hasPermission(DYN_BYPASS)) {
-                ((DynPlayer) player).setDynViewDistance(DynPlayer.DEFAULT_DISTANCE);
-            }
-        }
-    }
-
     @Command("dynview set <distance>")
     @Permission(DynamicViewDistance.DYN_CUSTOM)
     @Description("Sets your server-side view distance to a custom value")
@@ -137,10 +116,48 @@ public class DynamicViewDistance {
     @Description("Toggles on/off dynamic view distances for all players")
     public void pause(@Src CommandSource src) {
         if (paused = !paused) {
+            Fmt.get("dynview").info("Pausing dynamic view distances...").tell(src);
             Task.builder().execute(this::reset).submit(this);
         } else {
+            Fmt.get("dynview").info("Un-pausing dynamic view distances...").tell(src);
             Task.builder().execute(this::refresh).submit(this);
         }
-        Fmt.get("dynview").info("Dynamic view distances paused: ").stress(paused).tell(src);
+    }
+
+    // loops through online players and updates their view distance based on no. players online
+    private void refresh() {
+        if (paused) {
+            return;
+        }
+
+        Collection<Player> online = Sponge.getServer().getOnlinePlayers();
+        int count = online.size();
+        for (Player player : online) {
+            if (!player.hasPermission(DYN_BYPASS)) {
+                WorldConfig world = config.getWorldConfig(player.getWorld().getName());
+                Threshold threshold = world.getThreshold(count);
+                DynPlayer dynPlayer = (DynPlayer) player;
+
+                int oldDistance = dynPlayer.getDynViewDistance();
+                int newDistance = threshold.getViewDistance(player);
+                dynPlayer.setDynViewDistance(newDistance);
+
+                if (dynPlayer.getDynViewDistance() != oldDistance) {
+                    Fmt.get("dynview")
+                            .info("Server view-distance updated: %s", dynPlayer.getDynViewDistance())
+                            .tell(ChatTypes.ACTION_BAR, player);
+                }
+            }
+        }
+    }
+
+    // loops through online players and sets their view distance to the default marker
+    private void reset() {
+        Collection<Player> online = Sponge.getServer().getOnlinePlayers();
+        for (Player player : online) {
+            if (!player.hasPermission(DYN_BYPASS)) {
+                ((DynPlayer) player).setDynViewDistance(DynPlayer.DEFAULT_DISTANCE);
+            }
+        }
     }
 }
