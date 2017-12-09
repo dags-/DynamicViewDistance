@@ -17,6 +17,8 @@ import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.entity.MoveEntityEvent;
+import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
@@ -72,6 +74,13 @@ public class DynamicViewDistance {
     @Listener
     public void onDisconnect(ClientConnectionEvent.Disconnect e) {
         Task.builder().execute(this::refresh).submit(this);
+    }
+
+    @Listener
+    public void onTeleport(MoveEntityEvent.Teleport e, @First Player player) {
+        if (e.getToTransform().getExtent() != e.getFromTransform().getExtent()) {
+            refreshPlayer(player, Sponge.getServer().getOnlinePlayers().size());
+        }
     }
 
     @Command("dynview set <distance>")
@@ -133,24 +142,28 @@ public class DynamicViewDistance {
         Collection<Player> online = Sponge.getServer().getOnlinePlayers();
         int count = online.size();
         for (Player player : online) {
-            if (player.hasPermission(DYN_BYPASS)) {
-                continue;
-            }
-
-            DynPlayer dynPlayer = (DynPlayer) player;
-            WorldConfig world = config.getWorldConfig(player.getWorld().getName());
-            Threshold threshold = world.getThreshold(count);
-
-            int oldDistance = dynPlayer.getDynViewDistance();
-            int newDistance = threshold.getViewDistance(player);
-            dynPlayer.setDynViewDistance(newDistance);
-
-            if (dynPlayer.getDynViewDistance() == oldDistance) {
-                continue;
-            }
-
-            Fmt.get("dynview").info("Server view-distance updated: %s", dynPlayer.getDynViewDistance()).tell(ChatTypes.ACTION_BAR, player);
+            refreshPlayer(player, count);
         }
+    }
+    
+    private void refreshPlayer(Player player, int onlineCount) {
+        if (player.hasPermission(DYN_BYPASS)) {
+            return;
+        }
+
+        DynPlayer dynPlayer = (DynPlayer) player;
+        WorldConfig world = config.getWorldConfig(player.getWorld().getName());
+        Threshold threshold = world.getThreshold(onlineCount);
+
+        int oldDistance = dynPlayer.getDynViewDistance();
+        int newDistance = threshold.getViewDistance(player);
+        dynPlayer.setDynViewDistance(newDistance);
+
+        if (dynPlayer.getDynViewDistance() == oldDistance) {
+            return;
+        }
+
+        Fmt.get("dynview").info("Server view-distance updated: %s", dynPlayer.getDynViewDistance()).tell(ChatTypes.ACTION_BAR, player);
     }
 
     // loops through online players and sets their view distance to the default marker
