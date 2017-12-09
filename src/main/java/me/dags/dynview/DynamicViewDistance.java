@@ -133,21 +133,23 @@ public class DynamicViewDistance {
         Collection<Player> online = Sponge.getServer().getOnlinePlayers();
         int count = online.size();
         for (Player player : online) {
-            if (!player.hasPermission(DYN_BYPASS)) {
-                WorldConfig world = config.getWorldConfig(player.getWorld().getName());
-                Threshold threshold = world.getThreshold(count);
-                DynPlayer dynPlayer = (DynPlayer) player;
-
-                int oldDistance = dynPlayer.getDynViewDistance();
-                int newDistance = threshold.getViewDistance(player);
-                dynPlayer.setDynViewDistance(newDistance);
-
-                if (dynPlayer.getDynViewDistance() != oldDistance) {
-                    Fmt.get("dynview")
-                            .info("Server view-distance updated: %s", dynPlayer.getDynViewDistance())
-                            .tell(ChatTypes.ACTION_BAR, player);
-                }
+            if (player.hasPermission(DYN_BYPASS)) {
+                continue;
             }
+
+            DynPlayer dynPlayer = (DynPlayer) player;
+            WorldConfig world = config.getWorldConfig(player.getWorld().getName());
+            Threshold threshold = world.getThreshold(count);
+
+            int oldDistance = dynPlayer.getDynViewDistance();
+            int newDistance = threshold.getViewDistance(player);
+            dynPlayer.setDynViewDistance(newDistance);
+
+            if (dynPlayer.getDynViewDistance() == oldDistance) {
+                continue;
+            }
+
+            Fmt.get("dynview").info("Server view-distance updated: %s", dynPlayer.getDynViewDistance()).tell(ChatTypes.ACTION_BAR, player);
         }
     }
 
