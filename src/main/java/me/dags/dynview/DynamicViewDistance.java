@@ -10,8 +10,6 @@ import me.dags.commandbus.fmt.Fmt;
 import me.dags.commandbus.fmt.Format;
 import me.dags.config.Mapper;
 import me.dags.dynview.config.Config;
-import me.dags.dynview.config.Threshold;
-import me.dags.dynview.config.WorldConfig;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
@@ -24,11 +22,11 @@ import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.scheduler.Task;
-import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.format.TextColors;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * @author dags <dags@dags.me>
@@ -68,18 +66,20 @@ public class DynamicViewDistance {
 
     @Listener
     public void onJoin(ClientConnectionEvent.Join e) {
-        Task.builder().execute(this::refresh).submit(this);
+        refresh();
     }
 
     @Listener
     public void onDisconnect(ClientConnectionEvent.Disconnect e) {
-        Task.builder().execute(this::refresh).submit(this);
+        refresh();
     }
 
     @Listener
     public void onTeleport(MoveEntityEvent.Teleport e, @First Player player) {
         if (e.getToTransform().getExtent() != e.getFromTransform().getExtent()) {
-            refreshPlayer(player, Sponge.getServer().getOnlinePlayers().size());
+            Collection<Player> singleton = Collections.singletonList(player);
+            UpdateTask.Refresh refresh = new UpdateTask.Refresh(singleton, config);
+            Task.builder().execute(refresh).intervalTicks(1).submit(this);
         }
     }
 
@@ -126,53 +126,25 @@ public class DynamicViewDistance {
     public void pause(@Src CommandSource src) {
         if (paused = !paused) {
             Fmt.get("dynview").info("Pausing dynamic view distances...").tell(src);
-            Task.builder().execute(this::reset).submit(this);
+            reset();
         } else {
             Fmt.get("dynview").info("Un-pausing dynamic view distances...").tell(src);
-            Task.builder().execute(this::refresh).submit(this);
+            refresh();
         }
     }
 
-    // loops through online players and updates their view distance based on no. players online
     private void refresh() {
         if (paused) {
             return;
         }
-
         Collection<Player> online = Sponge.getServer().getOnlinePlayers();
-        int count = online.size();
-        for (Player player : online) {
-            refreshPlayer(player, count);
-        }
-    }
-    
-    private void refreshPlayer(Player player, int onlineCount) {
-        if (player.hasPermission(DYN_BYPASS)) {
-            return;
-        }
-
-        DynPlayer dynPlayer = (DynPlayer) player;
-        WorldConfig world = config.getWorldConfig(player.getWorld().getName());
-        Threshold threshold = world.getThreshold(onlineCount);
-
-        int oldDistance = dynPlayer.getDynViewDistance();
-        int newDistance = threshold.getViewDistance(player);
-        dynPlayer.setDynViewDistance(newDistance);
-
-        if (dynPlayer.getDynViewDistance() == oldDistance) {
-            return;
-        }
-
-        Fmt.get("dynview").info("Server view-distance updated: %s", dynPlayer.getDynViewDistance()).tell(ChatTypes.ACTION_BAR, player);
+        UpdateTask.Refresh refresh = new UpdateTask.Refresh(online, config);
+        Task.builder().execute(refresh).intervalTicks(1).submit(this);
     }
 
-    // loops through online players and sets their view distance to the default marker
     private void reset() {
         Collection<Player> online = Sponge.getServer().getOnlinePlayers();
-        for (Player player : online) {
-            if (!player.hasPermission(DYN_BYPASS)) {
-                ((DynPlayer) player).setDynViewDistance(DynPlayer.DEFAULT_DISTANCE);
-            }
-        }
+        UpdateTask.Reset reset = new UpdateTask.Reset(online, config);
+        Task.builder().execute(reset).intervalTicks(1).submit(this);
     }
 }

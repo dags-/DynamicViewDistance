@@ -1,7 +1,7 @@
 package me.dags.dynview.config;
 
-import me.dags.dynview.DynamicViewDistance;
 import me.dags.dynview.DynPlayer;
+import me.dags.dynview.DynamicViewDistance;
 import org.spongepowered.api.service.permission.Subject;
 
 import java.util.LinkedHashMap;
@@ -23,7 +23,8 @@ public class Threshold extends LinkedHashMap<String, Integer> {
     }
 
     public int getViewDistance(Subject subject) {
-        int distance = getOrDefault("default", DynPlayer.DEFAULT_DISTANCE);
+        int distance = -1;
+
         for (Map.Entry<String, Integer> entry : entrySet()) {
             if (entry.getKey().equals("default")) {
                 continue;
@@ -33,6 +34,11 @@ public class Threshold extends LinkedHashMap<String, Integer> {
                 distance = Math.max(distance, entry.getValue());
             }
         }
+
+        if (distance == -1) {
+            distance = getOrDefault("default", DynPlayer.DEFAULT_DISTANCE);
+        }
+
         return distance;
     }
 
