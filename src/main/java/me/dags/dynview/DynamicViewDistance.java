@@ -61,7 +61,7 @@ public class DynamicViewDistance {
     @Listener
     public void onReload(GameReloadEvent e) {
         config = mapper.must(dir.resolve("config.conf"), Config::defaultConfig);
-        Task.builder().execute(this::refresh).submit(this);
+        refresh();
     }
 
     @Listener
