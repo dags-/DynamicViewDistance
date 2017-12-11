@@ -1,12 +1,10 @@
 package me.dags.dynview;
 
-import me.dags.commandbus.fmt.Fmt;
 import me.dags.dynview.config.Config;
 import me.dags.dynview.config.Threshold;
 import me.dags.dynview.config.WorldConfig;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.scheduler.Task;
-import org.spongepowered.api.text.chat.ChatTypes;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -34,6 +32,7 @@ public abstract class UpdateTask implements Consumer<Task> {
             return;
         }
 
+        // make
         Player next = iterator.next();
         if (!next.isOnline()) {
             return;
@@ -60,15 +59,8 @@ public abstract class UpdateTask implements Consumer<Task> {
             WorldConfig world = super.config.getWorldConfig(player.getWorld().getName());
             Threshold threshold = world.getThreshold(super.count);
 
-            int oldDistance = dynPlayer.getDynViewDistance();
-            int newDistance = threshold.getViewDistance(player);
-            dynPlayer.setDynViewDistance(newDistance);
-
-            if (dynPlayer.getDynViewDistance() == oldDistance) {
-                return;
-            }
-
-            Fmt.get("dynview").info("Server view-distance updated: %s", dynPlayer.getDynViewDistance()).tell(ChatTypes.ACTION_BAR, player);
+            int distance = threshold.getViewDistance(player);
+            dynPlayer.setDynViewDistance(distance);
         }
     }
 

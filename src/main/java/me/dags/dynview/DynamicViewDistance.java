@@ -13,10 +13,12 @@ import me.dags.dynview.config.Config;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
+import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.Order;
 import org.spongepowered.api.event.entity.MoveEntityEvent;
-import org.spongepowered.api.event.filter.cause.First;
+import org.spongepowered.api.event.entity.SpawnEntityEvent;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
@@ -74,12 +76,20 @@ public class DynamicViewDistance {
         refresh();
     }
 
-    @Listener
-    public void onTeleport(MoveEntityEvent.Teleport e, @First Player player) {
-        if (e.getToTransform().getExtent() != e.getFromTransform().getExtent()) {
-            Collection<Player> singleton = Collections.singletonList(player);
-            UpdateTask.Refresh refresh = new UpdateTask.Refresh(singleton, config);
-            Task.builder().execute(refresh).intervalTicks(1).submit(this);
+    @Listener(order = Order.POST)
+    public void onSpawn(SpawnEntityEvent e) {
+        for (Entity entity : e.getEntities()) {
+            if (entity instanceof Player) {
+                refreshPlayer((Player) entity);
+            }
+        }
+    }
+
+    @Listener(order = Order.POST)
+    public void onTeleport(MoveEntityEvent.Teleport e) {
+        Entity entity = e.getTargetEntity();
+        if (entity instanceof Player && e.getToTransform().getExtent() != e.getFromTransform().getExtent()) {
+            refreshPlayer((Player) entity);
         }
     }
 
@@ -108,7 +118,12 @@ public class DynamicViewDistance {
     public void testDistance(@Src CommandSource src, Player target) {
         DynPlayer dynPlayer = (DynPlayer) target;
         int distance = dynPlayer.getDynViewDistance();
-        Fmt.stress(target.getName()).info("'s view distance: ").stress(distance).tell(src);
+
+        Fmt.get("dynview")
+                .info("Player: ").stress(target.getName())
+                .info(", World: ").stress(target.getWorld().getName())
+                .info(", Distance: ").stress(distance)
+                .tell(src);
     }
 
     @Command("dynview reload")
@@ -130,6 +145,15 @@ public class DynamicViewDistance {
             Fmt.get("dynview").info("Un-pausing dynamic view distances...").tell(src);
             refresh();
         }
+    }
+
+    private void refreshPlayer(Player player) {
+        if (paused) {
+            return;
+        }
+        Collection<Player> singleton = Collections.singletonList(player);
+        UpdateTask.Refresh refresh = new UpdateTask.Refresh(singleton, config);
+        Task.builder().execute(refresh).delayTicks(1L).submit(this);
     }
 
     private void refresh() {
