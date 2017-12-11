@@ -1,6 +1,5 @@
 package me.dags.dynview.config;
 
-import me.dags.dynview.DynPlayer;
 import me.dags.dynview.DynamicViewDistance;
 import org.spongepowered.api.service.permission.Subject;
 
@@ -36,7 +35,7 @@ public class Threshold extends LinkedHashMap<String, Integer> {
         }
 
         if (distance == -1) {
-            distance = getOrDefault("default", DynPlayer.DEFAULT_DISTANCE);
+            distance = getOrDefault("default", -1);
         }
 
         return distance;
@@ -45,7 +44,7 @@ public class Threshold extends LinkedHashMap<String, Integer> {
     static final Threshold DEFAULT = new Threshold(0) {
         @Override
         public int getViewDistance(Subject subject) {
-            return DynPlayer.DEFAULT_DISTANCE;
+            return -1;
         }
     };
 }

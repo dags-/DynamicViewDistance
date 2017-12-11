@@ -1,7 +1,7 @@
 package me.dags.dynview.mixin;
 
-import me.dags.dynview.DynChunkMap;
 import me.dags.dynview.DynPlayer;
+import me.dags.dynview.IMixinChunkMap;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.management.PlayerChunkMap;
 import net.minecraft.server.management.PlayerChunkMapEntry;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author dags <dags@dags.me>
  */
 @Mixin(PlayerChunkMap.class)
-public abstract class MixinPlayerChunkMap implements DynChunkMap {
+public abstract class MixinPlayerChunkMap implements IMixinChunkMap {
 
     @Shadow
     private int playerViewRadius;
@@ -34,109 +34,91 @@ public abstract class MixinPlayerChunkMap implements DynChunkMap {
 
     @Inject(method = "updateMountedMovingPlayer", at = @At("HEAD"), cancellable = true)
     private void updateMountedMovingPlayer(EntityPlayerMP player, CallbackInfo ci) {
-        DynPlayer dynPlayer = (DynPlayer) player;
-        int viewDistance = dynPlayer.getDynViewDistance();
+        int viewDistance = ((DynPlayer) player).getDynViewDistance();
+        if (viewDistance == getWorldViewDistance()) {
+            return;
+        }
 
-        // user the custom view distance if set & is different to world view distance
-        if (viewDistance != DynPlayer.DEFAULT_DISTANCE && viewDistance != getWorldViewDistance()) {
-            ci.cancel();
+        ci.cancel();
+        int px = (int) player.posX >> 4;
+        int pz = (int) player.posZ >> 4;
+        double d0 = player.managedPosX - player.posX;
+        double d1 = player.managedPosZ - player.posZ;
+        double d2 = d0 * d0 + d1 * d1;
 
-            int px = (int) player.posX >> 4;
-            int pz = (int) player.posZ >> 4;
-            double d0 = player.managedPosX - player.posX;
-            double d1 = player.managedPosZ - player.posZ;
-            double d2 = d0 * d0 + d1 * d1;
+        if (d2 >= 64.0D) {
+            int mx = (int) player.managedPosX >> 4;
+            int mz = (int) player.managedPosZ >> 4;
+            int dx = px - mx;
+            int dz = pz - mz;
 
-            if (d2 >= 64.0D) {
-                int mx = (int) player.managedPosX >> 4;
-                int mz = (int) player.managedPosZ >> 4;
-                int dx = px - mx;
-                int dz = pz - mz;
+            if (dx != 0 || dz != 0) {
+                for (int x = px - viewDistance; x <= px + viewDistance; ++x) {
+                    for (int z = pz - viewDistance; z <= pz + viewDistance; ++z) {
+                        if (!this.overlaps(x, z, mx, mz, viewDistance)) {
+                            this.getOrCreateEntry(x, z).addPlayer(player);
+                        }
 
-                if (dx != 0 || dz != 0) {
-                    for (int x = px - viewDistance; x <= px + viewDistance; ++x) {
-                        for (int z = pz - viewDistance; z <= pz + viewDistance; ++z) {
-                            if (!this.overlaps(x, z, mx, mz, viewDistance)) {
-                                this.getOrCreateEntry(x, z).addPlayer(player);
-                            }
+                        if (!this.overlaps(x - dx, z - dz, px, pz, viewDistance)) {
+                            PlayerChunkMapEntry playerchunkmapentry = this.getEntry(x - dx, z - dz);
 
-                            if (!this.overlaps(x - dx, z - dz, px, pz, viewDistance)) {
-                                PlayerChunkMapEntry playerchunkmapentry = this.getEntry(x - dx, z - dz);
-
-                                if (playerchunkmapentry != null) {
-                                    playerchunkmapentry.removePlayer(player);
-                                }
+                            if (playerchunkmapentry != null) {
+                                playerchunkmapentry.removePlayer(player);
                             }
                         }
                     }
-
-                    player.managedPosX = player.posX;
-                    player.managedPosZ = player.posZ;
-                    this.markSortPending();
                 }
+
+                player.managedPosX = player.posX;
+                player.managedPosZ = player.posZ;
+                this.markSortPending();
             }
         }
     }
 
     @Override
-    public void setViewDistance(DynPlayer dynPlayer, int currentDistance, int newDistance) {
-        if (currentDistance == newDistance) {
+    public void updatePlayerViewDistance(EntityPlayerMP player, int oldDistance, int newDistance) {
+        if (oldDistance == newDistance) {
             return;
         }
 
-        final EntityPlayerMP player = (EntityPlayerMP) dynPlayer;
-        int px = (int) player.posX >> 4;
-        int pz = (int) player.posZ >> 4;
-        int min = Math.min(currentDistance, newDistance);
-        int max = Math.max(currentDistance, newDistance);
+        int chunkX = (int) player.posX >> 4;
+        int chunkZ = (int) player.posZ >> 4;
+        int min = Math.min(oldDistance, newDistance);
+        int max = Math.max(oldDistance, newDistance);
+        EntryVisitor visitor = newDistance > oldDistance ? expand : contract;
 
-        // gets/creates the ChunkMapEntry for the target pos & adds player to it
-        EntryVisitor<EntityPlayerMP> expand = (x, z, p) -> getOrCreateEntry(x, z).addPlayer(p);
-
-        // gets the ChunkMapEntry for the target pos & removes player from it (if it exists)
-        EntryVisitor<EntityPlayerMP> contract = (x, z, p) -> {
-            PlayerChunkMapEntry entry = getEntry(x, z);
-            if (entry != null) {
-                entry.removePlayer(p);
-            }
-        };
-
-        // view distance has increased? => expand, otherwise contract
-        EntryVisitor<EntityPlayerMP> visitor = (newDistance > currentDistance) ? expand : contract;
-
-        /*
-         * |xz|xz|xz|
-         * |  |  |  |
-         * |xz|xz|xz| // iterates this area and mirrors ^
-         */
-        for (int dx = -max; dx <= max; dx++) {
-            for (int dz = -max; dz < -min; dz++) {
-                visitor.visit(px + dx, pz + dz, player);
-                if (dx != 0 || dz != 0) { // avoid duplicates at origin
-                    visitor.visit(px - dx, pz - dz, player);
+        for (int dx = 0; dx <= max; dx++) {
+            for (int dz = 0; dz <= max; dz++) {
+                if (dx > min || dz > min) {
+                    visitor.visit(chunkX - dx, chunkZ - dz, player);
+                    if (dz != 0) {
+                        visitor.visit(chunkX - dx, chunkZ + dz, player);
+                    }
+                    if (dx != 0) {
+                        visitor.visit(chunkX + dx, chunkZ - dz, player);
+                    }
+                    if (dx != 0 && dz != 0) {
+                        visitor.visit(chunkX + dx, chunkZ + dz, player);
+                    }
                 }
             }
         }
 
-        /*
-         * |..|..|..|
-         * |xz|  |xz| // iterates left-hand area and mirrors >
-         * |..|..|..|
-         */
-        for (int dx = -max; dx < -min; dx++) {
-            for (int dz = -min; dz <= min; dz++) {
-                visitor.visit(px + dx, pz + dz, player);
-                if (dx != 0 || dz != 0) {
-                    visitor.visit(px - dx, pz - dz, player);
-                }
-            }
-        }
-
-        this.markSortPending();
+        markSortPending();
     }
 
     @Override
     public int getWorldViewDistance() {
         return playerViewRadius;
     }
+
+    private final EntryVisitor expand = (x, z, p) -> getOrCreateEntry(x, z).addPlayer(p);
+
+    private final EntryVisitor contract = (x, z, p) -> {
+        PlayerChunkMapEntry entry = getEntry(x, z);
+        if (entry != null) {
+            entry.removePlayer(p);
+        }
+    };
 }

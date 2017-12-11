@@ -83,7 +83,7 @@ public abstract class UpdateTask implements Consumer<Task> {
             if (player.hasPermission(DynamicViewDistance.DYN_BYPASS)) {
                 return;
             }
-            ((DynPlayer) player).setDynViewDistance(DynPlayer.DEFAULT_DISTANCE);
+            ((DynPlayer) player).resetDynViewDistance();
         }
     }
 }

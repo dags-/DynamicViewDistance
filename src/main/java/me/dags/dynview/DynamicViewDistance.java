@@ -108,8 +108,7 @@ public class DynamicViewDistance {
     public void testDistance(@Src CommandSource src, Player target) {
         DynPlayer dynPlayer = (DynPlayer) target;
         int distance = dynPlayer.getDynViewDistance();
-        Object value = distance == DynPlayer.DEFAULT_DISTANCE ? "default" : distance;
-        Fmt.stress(target.getName()).info("'s view distance is set to").stress(value).tell(src);
+        Fmt.stress(target.getName()).info("'s view distance: ").stress(distance).tell(src);
     }
 
     @Command("dynview reload")
