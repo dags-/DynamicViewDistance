@@ -33,7 +33,7 @@ import java.util.Collections;
 /**
  * @author dags <dags@dags.me>
  */
-@Plugin(id = "dynview", name = "DynamicViewDistance", version = "1.0", description = "Dynamic per-player view distances", authors = "dags")
+@Plugin(id = "dynview", name = "DynamicViewDistance", version = "0.2.0", description = "Dynamic per-player view distances", authors = "dags")
 public class DynamicViewDistance {
 
     public static final String DYN_CUSTOM = "dynview.custom";
